@@ -6,8 +6,9 @@ main.py - Главный файл приложения TrademarkSearch
 import sys
 import logging
 from pathlib import Path
+import subprocess
 
-from PyQt6.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication, QMessageBox
 from PyQt6.QtCore import Qt
 
 # Импорт вкладок
@@ -74,6 +75,61 @@ def check_and_download_models():
         logger.info("Все необходимые модели найдены.")
 
     return True
+
+
+def check_and_prepare_data():
+    """Проверка наличия датасета и автоматическая подготовка"""
+    data_dir = Path("data")
+    raw_dir = data_dir / "raw"
+    csv_path = data_dir / "LogoDatabase.csv"
+
+    # Если папка raw пустая или отсутствует CSV — запускаем скачивание
+    need_download = False
+
+    if not raw_dir.exists() or not list(raw_dir.glob("*.*")):
+        need_download = True
+        logger.info("Папка data/raw пуста или не существует.")
+    elif not csv_path.exists():
+        need_download = True
+        logger.info("Файл LogoDatabase.csv не найден.")
+
+    if need_download:
+        logger.info("Запускается подготовка датасета...")
+        
+        reply = QMessageBox.question(
+            None,
+            "Датасет не найден",
+            "Датасет Popular Brand Logos не обнаружен или не подготовлен.\n\n"
+            "Запустить скачивание и распаковку сейчас?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            try:
+                result = subprocess.run(
+                    [sys.executable, "download_dataset.py"],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                logger.info("Датасет успешно подготовлен.")
+                print(result.stdout)
+                return True
+            except subprocess.CalledProcessError as e:
+                logger.error(f"Ошибка при подготовке датасета:\n{e.stderr}")
+                QMessageBox.critical(None, "Ошибка", 
+                                   "Не удалось подготовить датасет.\n"
+                                   "Пожалуйста, запустите download_dataset.py вручную.")
+                return False
+            except FileNotFoundError:
+                logger.error("Файл download_dataset.py не найден!")
+                QMessageBox.critical(None, "Ошибка", 
+                                   "Файл download_dataset.py не найден в корне проекта.")
+                return False
+    else:
+        logger.info("Датасет уже подготовлен.")
+        return True
 
 
 def main():
