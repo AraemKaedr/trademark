@@ -12,7 +12,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("TrademarkSearch - Поиск графических товарных знаков")
-        self.resize(1400, 900)
+        self.resize(1400, 700)
         
         central = QWidget()
         self.setCentralWidget(central)

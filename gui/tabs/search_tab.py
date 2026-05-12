@@ -1,3 +1,4 @@
+from pathlib import Path
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QFileDialog, QGroupBox, QProgressBar, QTextEdit
@@ -17,12 +18,13 @@ class SearchTab(QWidget):
         self.sam_embedder = None
         self.yolo_embedder = None
         self.index = None
+        self.current_image_path = None
         self.init_ui()
         
     def init_ui(self):
         layout = QVBoxLayout(self)
         
-        # Группа загрузки
+        # Группа загрузки изображения
         group = QGroupBox("Поиск графического товарного знака")
         group_layout = QVBoxLayout()
 
@@ -32,6 +34,7 @@ class SearchTab(QWidget):
 
         self.lbl_preview = QLabel("Изображение не загружено")
         self.lbl_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_preview.setMinimumHeight(200)
         group_layout.addWidget(self.lbl_preview)
 
         self.btn_search = QPushButton("Запустить поиск")
@@ -52,25 +55,40 @@ class SearchTab(QWidget):
         layout.addWidget(self.log)
 
     def load_image(self):
+        """Загрузка изображения для проверки"""
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Выберите изображение", "", "Images (*.png *.jpg *.jpeg *.webp)"
+            self, "Выберите изображение", "", "Images (*.png *.jpg *.jpeg *.webp *.gif *.bmp *.tiff)"
         )
         if file_path:
             self.current_image_path = file_path
-            self.lbl_preview.setText(f"Загружено: {Path(file_path).name}")
+            filename = Path(file_path).name
+            self.lbl_preview.setText(f"Загружено: {filename}")
             self.btn_search.setEnabled(True)
-            self.log.append(f"Изображение загружено: {file_path}")
+            self.log.append(f"Изображение загружено: {filename}")
 
     def start_search(self):
+        """Запуск поиска"""
+        if not self.current_image_path:
+            self.log.append("Изображение не загружено!")
+            return
+
         self.log.append("Запуск поиска...")
         self.progress.setVisible(True)
         self.progress.setValue(30)
 
-        # Здесь будет реальная логика
-        self.log.append("Эмбеддинги извлечены. Выполняется поиск...")
-        self.progress.setValue(70)
+        try:
+            # Здесь будет реальная логика поиска (пока заглушка)
+            self.log.append("Извлечение эмбеддингов...")
+            self.progress.setValue(60)
 
-        # Заглушка результата
-        self.log.append("Найдено 5 похожих знаков.")
-        self.progress.setValue(100)
-        self.progress.setVisible(False)
+            # Заглушка результата
+            self.log.append("Выполняется поиск в векторной базе...")
+            self.progress.setValue(90)
+            
+            # Заглушка результата
+            self.log.append("Поиск завершён. Найдено 5 похожих знаков.")
+        except Exception as e:
+            self.log.append(f"Ошибка при поиске: {e}")
+        finally:
+            self.progress.setValue(100)
+            self.progress.setVisible(False)
