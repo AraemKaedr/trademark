@@ -1,6 +1,6 @@
 """
+main.py - Главный файл приложения TrademarkSearch
 Интеллектуальная система векторного поиска графических товарных знаков
-TrademarkSearch — основной файл запуска приложения
 """
 
 import sys
@@ -23,10 +23,10 @@ from gui.tabs.manager_tab import ManagerTab
 # Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s | %(levelname)s | %(name)s | %(message)s',
+    format='%(asctime)s | %(name)s | %(levelname)s | %(message)s',
     handlers=[
         logging.FileHandler("logs/app.log", encoding="utf-8"),
-        logging.StreamHandler(sys.stdout)
+        logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
@@ -37,7 +37,7 @@ class MainWindow(QMainWindow):
     
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("LogoSimSearch — Поиск графических товарных знаков")
+        self.setWindowTitle("TrademarkSearch — Поиск графических товарных знаков")
         self.resize(1280, 820)
         
         # Центральный виджет
@@ -56,11 +56,11 @@ class MainWindow(QMainWindow):
         
         logger.info("Главное окно приложения успешно инициализировано")
         
-    def _add_tabs(self):
-        """Добавление всех вкладок"""
+    def _init_tabs(self):
+        """Инициализация всех вкладок"""
         self.tabs.addTab(DatasetTab(), "1. Датасет")
-        self.tabs.addTab(EmbeddingTab(), "2. Извлечение эмбеддингов")
-        self.tabs.addTab(IndexTab(), "3. Векторный индекс")
+        self.tabs.addTab(EmbeddingTab(), "2. Эмбеддинги")
+        self.tabs.addTab(IndexTab(), "3. Индекс")
         self.tabs.addTab(ClusterTab(), "4. Кластеризация")
         self.tabs.addTab(SearchTab(), "5. Поиск")
         self.tabs.addTab(ResultsTab(), "6. Результаты")
@@ -75,8 +75,10 @@ def main():
     app = QApplication(sys.argv)
     app.setStyle('Fusion')  # Современный стиль
     
-    # Иконка (опционально)
-    # app.setWindowIcon(QIcon("icons/app_icon.png"))
+    # # Установка иконки (если есть)
+    icon_path = Path("assets/icon.png")
+    if icon_path.exists():
+        app.setWindowIcon(QIcon(str(icon_path)))
     
     window = MainWindow()
     window.show()
