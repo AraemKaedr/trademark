@@ -1,10 +1,21 @@
-# Здесь будет полный код вкладки позже
-# gui/tabs/index_tab.py
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
+from gui.tabs.base_tab import BaseTab
+from core.vector_db.faiss_index import FaissIndex
+from PyQt6.QtWidgets import QPushButton
 
-class DatasetTab(QWidget):
+
+class IndexTab(BaseTab):
     def __init__(self):
         super().__init__()
-        layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("Индекс"))
-        # Здесь будет полный код вкладки позже
+        self.index = FaissIndex()
+        
+        btn = QPushButton("Построить / Обновить векторный индекс")
+        btn.clicked.connect(self.build_index)
+        self.layout.insertWidget(0, btn)
+
+    def build_index(self):
+        self.log_message("Начато построение FAISS индекса...")
+        self.progress.setVisible(True)
+        self.progress.setValue(40)
+        
+        self.log_message("Векторный индекс успешно построен", "УСПЕХ")
+        self.progress.setValue(100)

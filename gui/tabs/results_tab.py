@@ -1,10 +1,13 @@
-# Здесь будет полный код вкладки позже
-# gui/tabs/results_tab.py
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
+from gui.tabs.base_tab import BaseTab
+from PyQt6.QtWidgets import QLabel
 
-class DatasetTab(QWidget):
+
+class ResultsTab(BaseTab):
     def __init__(self):
         super().__init__()
-        layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("Результаты"))
-        # Здесь будет полный код вкладки позже
+        self.result_label = QLabel("Результаты поиска появятся здесь")
+        self.layout.insertWidget(0, self.result_label)
+
+    def show_results(self, results):
+        self.log_message("Отображение результатов поиска...")
+        self.result_label.setText(f"Найдено совпадений: {len(results)}")

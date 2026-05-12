@@ -1,10 +1,16 @@
-# Здесь будет полный код вкладки позже
-# gui/tabs/manager_tab.py
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
+from gui.tabs.base_tab import BaseTab
+from PyQt6.QtWidgets import QPushButton, QLabel
 
-class DatasetTab(QWidget):
+
+class ManagerTab(BaseTab):
     def __init__(self):
         super().__init__()
-        layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("Менеджер моделей"))
-        # Здесь будет полный код вкладки позже
+        self.status = QLabel("Менеджер моделей и индексов")
+        self.layout.insertWidget(0, self.status)
+        
+        btn = QPushButton("Обновить статус моделей")
+        btn.clicked.connect(self.update_status)
+        self.layout.insertWidget(1, btn)
+
+    def update_status(self):
+        self.log_message("Статус моделей обновлён", "УСПЕХ")

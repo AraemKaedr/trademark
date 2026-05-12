@@ -1,16 +1,33 @@
 from PyQt6.QtWidgets import QMainWindow, QTabWidget, QVBoxLayout, QWidget
-from gui.tabs import (DatasetTab, EmbeddingTab, IndexTab, ClusterTab, 
-                     SearchTab, ResultsTab, ManagerTab)
+from gui.tabs.dataset_tab import DatasetTab
+from gui.tabs.embedding_tab import EmbeddingTab
+from gui.tabs.index_tab import IndexTab
+from gui.tabs.cluster_tab import ClusterTab
+from gui.tabs.search_tab import SearchTab
+from gui.tabs.results_tab import ResultsTab
+from gui.tabs.manager_tab import ManagerTab
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("TrademarkSearch - Поиск графических товарных знаков")
-        self.resize(1200, 800)
+        self.resize(1400, 900)
+        
+        central = QWidget()
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
         
         self.tabs = QTabWidget()
-        self.setCentralWidget(self.tabs)
+        self.tabs.setDocumentMode(True)
+        layout.addWidget(self.tabs)
         
+        self._create_tabs()
+        
+        # По умолчанию открываем вкладку "Поиск"
+        self.tabs.setCurrentIndex(4)
+        
+    def _create_tabs(self):
         self.tabs.addTab(DatasetTab(), "1. Датасет")
         self.tabs.addTab(EmbeddingTab(), "2. Эмбеддинги")
         self.tabs.addTab(IndexTab(), "3. Индекс")

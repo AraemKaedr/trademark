@@ -1,7 +1,6 @@
 torch>=2.1.0
 torchvision>=0.16.0
-torchaudio>=2.1.0
-ultralytics>=8.1.0
+ultralytics>=8.2.0
 segment-anything
 faiss-cpu
 PyQt6
@@ -12,3 +11,4 @@ scikit-learn
 tqdm
 opencv-python
 matplotlib
+opencv-python-headless

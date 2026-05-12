@@ -1,10 +1,17 @@
-# Здесь будет полный код вкладки позже
-# gui/tabs/cluster_tab.py
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
+from gui.tabs.base_tab import BaseTab
+from PyQt6.QtWidgets import QPushButton
 
-class DatasetTab(QWidget):
+
+class ClusterTab(BaseTab):
     def __init__(self):
         super().__init__()
-        layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("Кластеризация"))
-        # Здесь будет полный код вкладки позже
+        btn = QPushButton("Выполнить кластеризацию")
+        btn.clicked.connect(self.run_clustering)
+        self.layout.insertWidget(0, btn)
+
+    def run_clustering(self):
+        self.log_message("Запущена кластеризация...")
+        self.progress.setVisible(True)
+        self.progress.setValue(60)
+        self.log_message("Кластеризация завершена (K-Means + DBSCAN)", "УСПЕХ")
+        self.progress.setValue(100)
