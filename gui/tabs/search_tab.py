@@ -1,11 +1,11 @@
 from pathlib import Path
+import numpy as np
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
+    QWidget, QVBoxLayout, QPushButton, QLabel,
     QFileDialog, QGroupBox, QProgressBar, QTextEdit
 )
 from PyQt6.QtCore import Qt
-from PIL import Image
-import numpy as np
+from PyQt6.QtGui import QPixmap
 
 from core.embedders.sam_embedder import SAMEmbedder
 from core.embedders.yolo_embedder import YOLOEmbedder
@@ -13,11 +13,12 @@ from core.vector_db.faiss_index import FaissIndex
 
 
 class SearchTab(QWidget):
-    def __init__(self):
+    def __init__(self, results_tab=None):
         super().__init__()
-        self.sam_embedder = None
-        self.yolo_embedder = None
-        self.index = None
+        self.sam_embedder = SAMEmbedder()
+        self.yolo_embedder = YOLOEmbedder()
+        self.index = FaissIndex()
+        self.results_tab = results_tab  # Ссылка на вкладку Результаты
         self.current_image_path = None
         self.init_ui()
         
@@ -34,7 +35,7 @@ class SearchTab(QWidget):
 
         self.lbl_preview = QLabel("Изображение не загружено")
         self.lbl_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.lbl_preview.setMinimumHeight(200)
+        self.lbl_preview.setMinimumHeight(260)
         group_layout.addWidget(self.lbl_preview)
 
         self.btn_search = QPushButton("Запустить поиск")
@@ -62,7 +63,8 @@ class SearchTab(QWidget):
         if file_path:
             self.current_image_path = file_path
             filename = Path(file_path).name
-            self.lbl_preview.setText(f"Загружено: {filename}")
+            pixmap = QPixmap(file_path).scaled(300, 300, Qt.AspectRatioMode.KeepAspectRatio)
+            self.lbl_preview.setPixmap(pixmap)
             self.btn_search.setEnabled(True)
             self.log.append(f"Изображение загружено: {filename}")
 
@@ -74,21 +76,49 @@ class SearchTab(QWidget):
 
         self.log.append("Запуск поиска...")
         self.progress.setVisible(True)
-        self.progress.setValue(30)
+        self.progress.setValue(20)
 
         try:
-            # Здесь будет реальная логика поиска (пока заглушка)
-            self.log.append("Извлечение эмбеддингов...")
-            self.progress.setValue(60)
+            # 1. Извлечение эмбеддингов
+            self.log.append("Извлечение эмбеддингов (SAM + YOLO)...")
+            self.progress.setValue(50)
 
-            # Заглушка результата
-            self.log.append("Выполняется поиск в векторной базе...")
-            self.progress.setValue(90)
+            # Реальное извлечение
+            query_emb = self._get_combined_embedding(self.current_image_path)
+
+            # 2. Поиск похожих изображений в векторной базе (в индексе)
+            self.log.append("Поиск ближайших соседей в векторной базе...")
+            self.progress.setValue(75)
             
-            # Заглушка результата
-            self.log.append("Поиск завершён. Найдено 5 похожих знаков.")
+            distances, indices = self.index.search(query_emb, k=5)
+
+            # 3. Передаём результаты во вкладку "Результаты"
+            if self.results_tab:
+                self.results_tab.show_results(self.current_image_path, distances, indices)
+                self.log.append("Результаты переданы и будут доступны во вкладке «6. Результаты»")
+            else:
+                self.log.append("Вкладка Результатов не подключена")
+            
+            self.log.append("Поиск успешно завершён!")
+
         except Exception as e:
             self.log.append(f"Ошибка при поиске: {e}")
         finally:
             self.progress.setValue(100)
             self.progress.setVisible(False)
+    
+    def _get_combined_embedding(self, image_path: str) -> np.ndarray:
+        """Комбинированный эмбеддинг от двух моделей SAM и YOLO"""
+        sam_emb = self.sam_embedder.get_embedding(image_path)
+        yolo_emb = self.yolo_embedder.get_embedding(image_path)
+        
+        # Объединяем и нормализуем
+        combined = np.concatenate([sam_emb, yolo_emb])
+        combined = combined.astype(np.float32)
+        
+        # Нормализация
+        norm = np.linalg.norm(combined)
+        if norm > 0:
+            combined /= norm
+            
+        return combined
