@@ -139,6 +139,14 @@ def main():
     
     logger.info("Запуск приложения TrademarkSearch")
     
+    # Проверка и скачивание моделей перед запуском
+    if not check_and_download_models():
+        logger.warning("Приложение запущено без всех моделей.")
+    
+    # Автоматическая проверка и подготовка датасета
+    if not check_and_prepare_data():
+        logger.warning("Приложение запущено без датасета.")
+    
     window = MainWindow()
     window.show()
 

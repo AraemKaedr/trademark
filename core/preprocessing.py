@@ -19,20 +19,21 @@ class DataPreprocessor:
         self.processed_dir.mkdir(parents=True, exist_ok=True)
         
         if not self.csv_path.exists():
-            logger.error("Файл LogoDatabase.csv не найден!")
+            logger.error("Файл LogoDatabase.csv не найден в папке data/ !")
             return 0
         
         df = pd.read_csv(self.csv_path)
         logger.info(f"Загружено {len(df)} записей из CSV")
+        logger.info(f"Доступные колонки: {list(df.columns)}")
         
         valid_count = 0
         all_count = 0
 
         # Поддерживаемые расширения
-        supported_extensions = {'.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp'}
+        supported_extensions = {'.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.tiff'}
 
         for _, row in df.iterrows():
-            filename = str(row['filename']).strip()
+            filename = str(row['fileName']).strip()
             all_count += 1
             
             img_path = None
@@ -56,7 +57,7 @@ class DataPreprocessor:
                     else:
                         img = img.convert('RGB')
                     
-                    save_path = self.processed_dir / f"{Path(row['filename']).stem}.jpg"
+                    save_path = self.processed_dir / f"{Path(filename).stem}.jpg"
                     img.save(save_path, quality=95)
                     valid_count += 1
             except Exception as e:
