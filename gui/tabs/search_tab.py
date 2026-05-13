@@ -17,14 +17,15 @@ class SearchTab(QWidget):
         super().__init__()
         self.sam_embedder = SAMEmbedder()
         self.yolo_embedder = YOLOEmbedder()
-        self.index = FaissIndex()
-        self.results_tab = results_tab  # Ссылка на вкладку Результаты
+        self.sam_index = FaissIndex(dimension=256, index_path="indexes/sam_index.faiss")
+        self.yolo_index = FaissIndex(dimension=512, index_path="indexes/yolo_index.faiss")
+        self.results_tab = results_tab # Ссылка на вкладку Результаты
         self.current_image_path = None
         self.init_ui()
-        
+
     def init_ui(self):
         layout = QVBoxLayout(self)
-        
+
         # Группа загрузки изображения
         group = QGroupBox("Поиск графического товарного знака")
         group_layout = QVBoxLayout()
@@ -58,15 +59,15 @@ class SearchTab(QWidget):
     def load_image(self):
         """Загрузка изображения для проверки"""
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Выберите изображение", "", "Images (*.png *.jpg *.jpeg *.webp *.gif *.bmp *.tiff)"
+            self, "Выберите изображение", "", 
+            "Images (*.png *.jpg *.jpeg *.webp *.gif *.bmp *.tiff)"
         )
         if file_path:
             self.current_image_path = file_path
-            filename = Path(file_path).name
             pixmap = QPixmap(file_path).scaled(300, 300, Qt.AspectRatioMode.KeepAspectRatio)
             self.lbl_preview.setPixmap(pixmap)
             self.btn_search.setEnabled(True)
-            self.log.append(f"Изображение загружено: {filename}")
+            self.log.append(f"Загружено: {Path(file_path).name}")
 
     def start_search(self):
         """Запуск поиска"""
@@ -74,51 +75,43 @@ class SearchTab(QWidget):
             self.log.append("Изображение не загружено!")
             return
 
-        self.log.append("Запуск поиска...")
+        self.log.append("Запуск поиска по двум моделям...")
         self.progress.setVisible(True)
         self.progress.setValue(20)
 
         try:
-            # 1. Извлечение эмбеддингов
-            self.log.append("Извлечение эмбеддингов (SAM + YOLO)...")
-            self.progress.setValue(50)
+            # Извлечение эмбеддингов SAM
+            self.log.append("Извлечение эмбеддингов SAM...")
+            sam_emb = self.sam_embedder.get_embedding(self.current_image_path)
+            self.progress.setValue(45)
 
-            # Реальное извлечение
-            query_emb = self._get_combined_embedding(self.current_image_path)
+            # Извлечение эмбеддингов YOLO
+            self.log.append("Извлечение эмбеддингов YOLO...")
+            yolo_emb = self.yolo_embedder.get_embedding(self.current_image_path)
+            self.progress.setValue(70)
 
-            # 2. Поиск похожих изображений в векторной базе (в индексе)
-            self.log.append("Поиск ближайших соседей в векторной базе...")
-            self.progress.setValue(75)
+            # Поиск в обоих индексах
+            self.log.append("Поиск по SAM...")
+            sam_dist, sam_idx = self.sam_index.search(sam_emb, k=5)
             
-            distances, indices = self.index.search(query_emb, k=5)
+            self.log.append("Поиск по YOLO...")
+            yolo_dist, yolo_idx = self.yolo_index.search(yolo_emb, k=5)
 
-            # 3. Передаём результаты во вкладку "Результаты"
+            # Передаём результаты во вкладку "Результаты"
             if self.results_tab:
-                self.results_tab.show_results(self.current_image_path, distances, indices)
-                self.log.append("Результаты переданы и будут доступны во вкладке «6. Результаты»")
+                self.results_tab.show_results(
+                    self.current_image_path, 
+                    sam_dist, sam_idx, 
+                    yolo_dist, yolo_idx
+                )
+                self.log.append("Результаты переданы во вкладку 6. Результаты")
             else:
                 self.log.append("Вкладка Результатов не подключена")
             
             self.log.append("Поиск успешно завершён!")
 
         except Exception as e:
-            self.log.append(f"Ошибка при поиске: {e}")
+            self.log.append(f"Ошибка поиска: {e}")
         finally:
             self.progress.setValue(100)
             self.progress.setVisible(False)
-    
-    def _get_combined_embedding(self, image_path: str) -> np.ndarray:
-        """Комбинированный эмбеддинг от двух моделей SAM и YOLO"""
-        sam_emb = self.sam_embedder.get_embedding(image_path)
-        yolo_emb = self.yolo_embedder.get_embedding(image_path)
-        
-        # Объединяем и нормализуем
-        combined = np.concatenate([sam_emb, yolo_emb])
-        combined = combined.astype(np.float32)
-        
-        # Нормализация
-        norm = np.linalg.norm(combined)
-        if norm > 0:
-            combined /= norm
-            
-        return combined

@@ -29,6 +29,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Проверка важных зависимостей
+try:
+    import segment_anything
+    logger.info("Библиотека segment-anything установлена")
+except ImportError:
+    logger.warning("Библиотека segment-anything не установлена. SAM будет работать в режиме заглушки.")
+
 
 def check_and_download_models():
     """Проверка наличия моделей и автоматическая загрузка при необходимости"""
