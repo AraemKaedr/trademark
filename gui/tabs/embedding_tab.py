@@ -2,10 +2,12 @@ from gui.tabs.base_tab import BaseTab
 from core.embedders.sam_embedder import SAMEmbedder
 from core.embedders.yolo_embedder import YOLOEmbedder
 from core.vector_db.faiss_index import FaissIndex
+from gui.workers import EmbeddingWorker
 from PyQt6.QtWidgets import QPushButton, QHBoxLayout, QWidget, QLabel
 from PyQt6.QtCore import Qt
 import numpy as np
 from pathlib import Path
+import time
 
 
 class EmbeddingTab(BaseTab):
@@ -18,6 +20,8 @@ class EmbeddingTab(BaseTab):
         self.sam_index = FaissIndex(dimension=256, index_path="indexes/sam_index.faiss")
         self.yolo_index = FaissIndex(dimension=512, index_path="indexes/yolo_index.faiss")
         
+        self.current_worker = None
+        self.start_time = None
         self.init_ui()
 
     def init_ui(self):
@@ -43,67 +47,81 @@ class EmbeddingTab(BaseTab):
         container = QWidget()
         container.setLayout(btn_layout)
         self.layout.insertWidget(1, container)
+    
+    def _start_extraction(self, mode: str):
+        if self.current_worker and self.current_worker.isRunning():
+            self.log_message("Извлечение уже выполняется! Подождите завершения.", "WARNING")
+            return
 
+        from core.preprocessing import DataPreprocessor
+        preprocessor = DataPreprocessor()
+        processed_dir = preprocessor.processed_dir
+
+        image_paths = sorted(list(processed_dir.glob("*.jpg")))
+        if not image_paths:
+            self.log_message("Нет обработанных изображений в data/processed/ !", "ERROR")
+            return
+
+        self.start_time = time.time()
+        self.log_message(f"Запущено извлечение {mode.upper()} для {len(image_paths)} изображений...")
+        self.progress.setVisible(True)
+        self.progress.setValue(0)
+
+        if mode == "sam":
+            embedder = self.sam_embedder
+        elif mode == "yolo":
+            embedder = self.yolo_embedder
+        else:
+            self.log_message("Режим 'Извлечь эмбеддинги обеих моделей' пока в разработке", "WARNING")
+            return
+
+        # Запускаем извлечение эмбеддингов в отдельном потоке
+        self.current_worker = EmbeddingWorker(embedder, image_paths, mode)
+        self.current_worker.progress.connect(self._update_progress)
+        self.current_worker.log.connect(lambda msg: self.log_message(msg))
+        self.current_worker.finished.connect(lambda embs: self._on_extraction_finished(mode, embs, image_paths))
+        
+        self.current_worker.start()
+
+    def _update_progress(self, value: int):
+        """Обновление прогресса + оценка времени"""
+        self.progress.setValue(value)
+        
+        if value > 0 and self.start_time:
+            elapsed = time.time() - self.start_time
+            if value > 0:
+                estimated_total = elapsed * (100 / value)
+                remaining = estimated_total - elapsed
+                mins = int(remaining // 60)
+                secs = int(remaining % 60)
+                self.log_message(f"Прогресс: {value}% | Осталось ~{mins} мин {secs} сек")
+    
     def extract_sam(self):
-        self._extract_embeddings("sam")
+        self._start_extraction("sam")
 
     def extract_yolo(self):
-        self._extract_embeddings("yolo")
+        self._start_extraction("yolo")
 
     def extract_both(self):
-        self._extract_embeddings("both")
+        # self._start_extraction("both")
+        self.log_message("Извлечение эмбеддингов из обоих моделей одновременно пока в разработке", "WARNING")
 
-    def _extract_embeddings(self, mode: str):
-        self.log_message(f"Начато извлечение эмбеддингов: {mode.upper()}")
-        self.progress.setVisible(True)
-        self.progress.setValue(5)
+    def _on_extraction_finished(self, mode: str, embeddings, image_paths):
+        """Вызывается после завершения потока"""
+        self.progress.setValue(100)
+        self.progress.setVisible(False)
+        
+        if not embeddings:
+            self.log_message("Не удалось извлечь эмбеддинги", "ERROR")
+            return
 
         try:
-            from core.preprocessing import DataPreprocessor
-            preprocessor = DataPreprocessor()
-            processed_dir = preprocessor.processed_dir
-
-            if not processed_dir.exists() or len(list(processed_dir.glob("*.jpg"))) == 0:
-                self.log_message("Сначала выполните предобработку датасета на вкладке 1!", "ERROR")
-                return
-
-            image_paths = sorted(list(processed_dir.glob("*.jpg")))
-            self.log_message(f"Найдено изображений: {len(image_paths)}")
-
-            sam_embeddings = []
-            yolo_embeddings = []
-            paths_to_save = []
-
-            for i, img_path in enumerate(image_paths):
-                progress = 10 + int((i / len(image_paths)) * 80)
-                self.progress.setValue(progress)
-                self.log_message(f"Обработка {i+1}/{len(image_paths)}: {img_path.name}")
-
-                if mode in ["sam", "both"]:
-                    sam_emb = self.sam_embedder.get_embedding(str(img_path))
-                    sam_embeddings.append(sam_emb)
-
-                if mode in ["yolo", "both"]:
-                    yolo_emb = self.yolo_embedder.get_embedding(str(img_path))
-                    yolo_embeddings.append(yolo_emb)
-
-                paths_to_save.append(img_path)
-
-            # Сохранение в индексы
-            if mode in ["sam", "both"] and sam_embeddings:
-                self.sam_index.add(np.array(sam_embeddings), paths_to_save)
-                self.log_message(f"SAM эмбеддинги сохранены ({len(sam_embeddings)})", "УСПЕХ")
-
-            if mode in ["yolo", "both"] and yolo_embeddings:
-                self.yolo_index.add(np.array(yolo_embeddings), paths_to_save)
-                self.log_message(f"YOLO эмбеддинги сохранены ({len(yolo_embeddings)})", "УСПЕХ")
-
-            self.log_message("Извлечение эмбеддингов успешно завершено!", "УСПЕХ")
-
+            if mode == "sam":
+                self.sam_index.add(np.array(embeddings), self.current_worker.image_paths)
+            elif mode == "yolo":
+                self.yolo_index.add(np.array(embeddings), self.current_worker.image_paths)
+            self.log_message(f"{mode.upper()} эмбеддинги успешно сохранены ({len(embeddings)} векторов)", "УСПЕХ")
         except Exception as e:
-            self.log_message(f"Критическая ошибка: {e}", "ERROR")
-            import traceback
-            self.log_message(traceback.format_exc(), "ERROR")
+            self.log_message(f"Ошибка сохранения в индекс: {e}", "ERROR")
         finally:
-            self.progress.setValue(100)
-            self.progress.setVisible(False)
+            self.current_worker = None   # Освобождаем worker

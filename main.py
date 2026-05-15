@@ -18,14 +18,15 @@ from gui.main_window import MainWindow
 log_dir = Path("logs")
 log_dir.mkdir(exist_ok=True)
 
-# Настройка сообщений логирования
+# Настройка сообщений логирования (пишет и в файл, и в терминал)
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s | %(levelname)s | %(message)s',
+    format='%(asctime)s | %(name)s | %(levelname)s | %(message)s',
     handlers=[
-        logging.FileHandler(log_dir / "app.log", encoding='utf-8'),
+        logging.FileHandler(log_dir / "app.log", encoding='utf-8', mode='a'),  # 'a' - режим append. Нужен для того, чтобы логи гарантированно писались в logs/app.log
         logging.StreamHandler(sys.stdout)
-    ]
+    ],
+    force=True  # Перезаписываем конфигурацию, если она уже была
 )
 logger = logging.getLogger(__name__)
 

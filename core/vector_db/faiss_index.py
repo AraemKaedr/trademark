@@ -23,31 +23,42 @@ class FaissIndex:
         self.load()
 
     def load(self) -> bool:
-        """Загрузка индекса и эмбеддингов"""
+        """Загрузка индекса существующего индекса или создание нового, а также загрузка сохранённых эмбеддингов"""
+        self.index_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Пытаемся загрузить существующий индекс
         if self.index_path.exists():
             try:
                 self.index = faiss.read_index(str(self.index_path))
                 
-                # Загружаем эмбеддинги
+                # Загружаем сохранённые эмбеддинги
                 if self.embeddings_path.exists():
                     self.embeddings = np.load(self.embeddings_path)
+                else:
+                    self.embeddings = np.empty((0, self.dimension), dtype=np.float32)
                 
+                # Загружаем mapping (соответствие id → путь к файлу)
                 pkl_path = self.index_path.with_suffix('.pkl')
                 if pkl_path.exists():
                     with open(pkl_path, 'rb') as f:
                         self.mapping = pickle.load(f)
+                else:
+                    self.mapping = {}   
                 
                 self.is_loaded = True
-                logger.info(f"{self.index_path.name} загружен ({self.index.ntotal} векторов)")
+                logger.info(f"{self.index_path.name} успешно загружен ({self.index.ntotal} векторов)")
                 return True
             except Exception as e:
-                logger.error(f"Ошибка загрузки индекса: {e}")
+                logger.warning(f"Ошибка! Не удалось загрузить индекс {self.index_path.name}: {e}")
+                logger.info(" Создаётся новый индекс...")
 
-        # Если индекс не существует — создаём новый
-        logger.info("Создаётся новый индекс")
+        # Создаём новый пустой индекс
+        logger.info(f"Создаётся новый FAISS индекс (dimension={self.dimension})")
         self.index = faiss.IndexFlatIP(self.dimension)
         self.embeddings = np.empty((0, self.dimension), dtype=np.float32)
+        self.mapping = {}
         self.is_loaded = True
+
         return False
 
     def add(self, embeddings: np.ndarray, image_paths: list):
