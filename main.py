@@ -80,6 +80,7 @@ def check_and_prepare_data():
     """Проверка наличия датасета и автоматическая подготовка"""
     data_dir = Path("data")
     raw_dir = data_dir / "raw"
+    need_download = False
     if not raw_dir.exists() or len(list(raw_dir.glob("*.*"))) < 10:
         need_download = True
         logger.info("Папка data/raw пуста или не существует.")

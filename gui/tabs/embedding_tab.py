@@ -40,10 +40,6 @@ class EmbeddingTab(BaseTab):
         self.btn_yolo.clicked.connect(self.extract_yolo)
         btn_layout.addWidget(self.btn_yolo)
 
-        self.btn_both = QPushButton("Извлечь эмбеддинги обеих моделей")
-        self.btn_both.clicked.connect(self.extract_both)
-        btn_layout.addWidget(self.btn_both)
-
         container = QWidget()
         container.setLayout(btn_layout)
         self.layout.insertWidget(1, container)
@@ -68,16 +64,14 @@ class EmbeddingTab(BaseTab):
         self.progress.setValue(0)
 
         try:
-            if mode in ["resnet", "both"]:
+            if mode == "resnet":
                 embedder = self.resnet_embedder
                 index = self.resnet_index
-            elif mode in ["yolo", "both"]:
+            elif mode == "yolo":
                 embedder = self.yolo_embedder
                 index = self.yolo_index
         except Exception as e:
             self.log_message(f"Ошибка кластеризации: {e}", "ERROR")
-        
-        self.log_message(f"Кластеризация {mode.upper()} успешно завершена!", "УСПЕХ")
         
         # Запускаем извлечение эмбеддингов в отдельном потоке
         self.current_worker = EmbeddingWorker(embedder, image_paths, mode)
@@ -106,9 +100,6 @@ class EmbeddingTab(BaseTab):
     def extract_yolo(self):
         self._start_extraction("yolo")
 
-    def extract_both(self):
-        self._start_extraction("both")
-
     def _on_extraction_finished(self, mode: str, embeddings, image_paths, index):
         """Вызывается после завершения потока"""
         self.progress.setValue(100)
@@ -120,10 +111,11 @@ class EmbeddingTab(BaseTab):
             return
 
         try:
-            if mode in ["resnet", "both"]:
+            if mode == "resnet":
                 self.resnet_index.add(np.array(embeddings), self.current_worker.image_paths)
-            elif mode in ["yolo", "both"]:
+            elif mode == "yolo":
                 self.yolo_index.add(np.array(embeddings), self.current_worker.image_paths)
+            self.log_message(f"Кластеризация {mode.upper()} успешно завершена!", "УСПЕХ")
             self.log_message(f"{mode.upper()} эмбеддинги успешно сохранены ({len(embeddings)} векторов)", "УСПЕХ")
         except Exception as e:
             self.log_message(f"Ошибка сохранения в индекс: {e}", "ERROR")

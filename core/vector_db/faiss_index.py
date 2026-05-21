@@ -101,3 +101,7 @@ class FaissIndex:
     def get_total_vectors(self):
         """Количество векторов в индексе"""
         return self.index.ntotal if self.index else 0
+    
+    def get_path_by_index(self, idx: int):
+        """Метод возвращающий путь к изображению по индексу"""
+        return self.mapping.get(int(idx))

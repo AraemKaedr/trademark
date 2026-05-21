@@ -68,7 +68,7 @@ class ClusterTab(BaseTab):
 
         self.log_message(f"{model_name} индекс содержит {n_vectors} векторов")
         
-        count_vectors = 20
+        count_vectors = 15
         if n_vectors < count_vectors:
             self.log_message(f"Недостаточно данных для {model_name} кластеризации ({n_vectors} векторов) нужно минимум {count_vectors} векторов изображений", "WARNING")
             self.log_message("   Сначала перейдите во вкладку 2. Эмбеддинги и извлеките эмбеддинги", "WARNING")

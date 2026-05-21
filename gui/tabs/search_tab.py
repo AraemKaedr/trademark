@@ -84,18 +84,33 @@ class SearchTab(QWidget):
 
             # Поиск в обоих индексах
             self.log.append("Поиск по ResNet...")
-            resnet_dist, resnet_idx = self.resnet_index.search(resnet_emb, k=5)
+            resnet_dist, resnet_idx = self.resnet_index.search(resnet_emb, k=6)  # берём на 1 больше
             
             self.log.append("Поиск по YOLO...")
-            yolo_dist, yolo_idx = self.yolo_index.search(yolo_emb, k=5)
+            yolo_dist, yolo_idx = self.yolo_index.search(yolo_emb, k=6)
+
+            # Оригинальность
+            # Берём второй максимум (или максимум, если self не найден)
+            resnet_max_sim = max(resnet_dist)
+            if resnet_max_sim > 0.98:  # очень высокая схожесть = self
+                originality = (1 - sorted(resnet_dist)[-2]) * 100 if len(resnet_dist) > 1 else 85.0
+            else:
+                originality = (1 - resnet_max_sim) * 100
 
             # Передаём результаты во вкладку "Результаты"
             if self.results_tab:
                 self.results_tab.show_results(
-                    self.current_image_path, 
-                    resnet_dist, resnet_idx, 
-                    yolo_dist, yolo_idx
+                    query_path=self.current_image_path,  # Убирает из результата лого запроса
+                    resnet_dist=resnet_dist,
+                    resnet_idx=resnet_idx,
+                    yolo_dist=yolo_dist,
+                    yolo_idx=yolo_idx,
+                    originality=originality,
+                    resnet_index=self.resnet_index,
+                    yolo_index=self.yolo_index
                 )
+                self.log.append(f"Оригинальность: {originality:.1f}%")
+                
                 self.log.append("Результаты переданы во вкладку 6. Результаты")
             else:
                 self.log.append("Вкладка Результатов не подключена")

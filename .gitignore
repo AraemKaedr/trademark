@@ -220,6 +220,8 @@ __marimo__/
 # My ignore
 data/raw/*
 data/processed/*
+data/flickr_logos_27_dataset/*
+data/flickr_logos_27_dataset_images/*
 models/*.pt
 models/*.pth
 models_retrained/*.pt

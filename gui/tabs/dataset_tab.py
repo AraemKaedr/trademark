@@ -1,6 +1,8 @@
 from gui.tabs.base_tab import BaseTab
 from core.preprocessing import DataPreprocessor
-from PyQt6.QtWidgets import QPushButton, QLabel
+from PyQt6.QtWidgets import QPushButton, QLabel, QHBoxLayout, QWidget
+import subprocess
+from pathlib import Path
 
 
 class DatasetTab(BaseTab):
@@ -10,13 +12,20 @@ class DatasetTab(BaseTab):
         self.init_ui()
 
     def init_ui(self):
-        title = QLabel("Предобработка датасета")
+        title = QLabel("Предобработка датасета и обучение моделей")
         title.setStyleSheet("font-weight: bold; font-size: 14px;")
         self.layout.insertWidget(0, title)
         
-        btn = QPushButton("Запустить очистку и предобработку датасета")
-        btn.clicked.connect(self.run_preprocessing)
-        self.layout.insertWidget(1, btn)
+        # Кнопки
+        btn_layout = QHBoxLayout()
+
+        self.btn_preprocess = QPushButton("Очистка и предобработка датасета (вырезать логотипы)")
+        self.btn_preprocess.clicked.connect(self.run_preprocessing)
+        btn_layout.addWidget(self.btn_preprocess)
+
+        container = QWidget()
+        container.setLayout(btn_layout)
+        self.layout.insertWidget(1, container)
 
     def run_preprocessing(self):
         self.log_message("Начата предобработка датасета...")
@@ -27,4 +36,4 @@ class DatasetTab(BaseTab):
         
         self.progress.setValue(100)
         self.progress.setVisible(False)
-        self.log_message(f"Предобработка завершена. Обработано изображений: {count}", "УСПЕХ")
+        self.log_message(f"Предобработка завершена. Вырезано {count} логотипов.", "УСПЕХ")
