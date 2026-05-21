@@ -6,8 +6,8 @@ from PyQt6.QtWidgets import QPushButton, QHBoxLayout, QWidget, QLabel
 class IndexTab(BaseTab):
     def __init__(self):
         super().__init__()
-        # Создаём отдельные индексы для SAM и YOLO
-        self.sam_index = FaissIndex(dimension=256, index_path="indexes/sam_index.faiss")
+        # Создаём отдельные индексы для ResNet и YOLO
+        self.resnet_index = FaissIndex(dimension=2048, index_path="indexes/resnet_index.faiss")
         self.yolo_index = FaissIndex(dimension=512, index_path="indexes/yolo_index.faiss")
         
         self.init_ui()
@@ -20,17 +20,17 @@ class IndexTab(BaseTab):
         # Кнопки управления индексами
         btn_layout = QHBoxLayout()
         
-        self.btn_reload_sam = QPushButton("Перезагрузить SAM индекс")
-        self.btn_reload_sam.clicked.connect(lambda: self._reload_index("sam"))
-        btn_layout.addWidget(self.btn_reload_sam)
+        self.btn_reload_resnet = QPushButton("Перезагрузить ResNet индекс")
+        self.btn_reload_resnet.clicked.connect(lambda: self._reload_index("resnet"))
+        btn_layout.addWidget(self.btn_reload_resnet)
 
         self.btn_reload_yolo = QPushButton("Перезагрузить YOLO индекс")
         self.btn_reload_yolo.clicked.connect(lambda: self._reload_index("yolo"))
         btn_layout.addWidget(self.btn_reload_yolo)
 
-        self.btn_clear_sam = QPushButton("Очистить SAM индекс")
-        self.btn_clear_sam.clicked.connect(lambda: self._clear_index("sam"))
-        btn_layout.addWidget(self.btn_clear_sam)
+        self.btn_clear_resnet = QPushButton("Очистить ResNet индекс")
+        self.btn_clear_resnet.clicked.connect(lambda: self._clear_index("resnet"))
+        btn_layout.addWidget(self.btn_clear_resnet)
 
         self.btn_clear_yolo = QPushButton("Очистить YOLO индекс")
         self.btn_clear_yolo.clicked.connect(lambda: self._clear_index("yolo"))
@@ -46,9 +46,9 @@ class IndexTab(BaseTab):
 
     def _reload_index(self, model_type: str):
         """Перезагрузка индекса"""
-        if model_type == "sam":
-            success = self.sam_index.load()
-            status = "SAM"
+        if model_type == "resnet":
+            success = self.resnet_index.load()
+            status = "ResNet50"
         else:
             success = self.yolo_index.load()
             status = "YOLO"
@@ -62,9 +62,9 @@ class IndexTab(BaseTab):
 
     def _clear_index(self, model_type: str):
         """Очистка индекса (удаление файлов)"""
-        if model_type == "sam":
-            index = self.sam_index
-            status = "SAM"
+        if model_type == "resnet":
+            index = self.resnet_index
+            status = "ResNet50"
         else:
             index = self.yolo_index
             status = "YOLO"
@@ -80,22 +80,22 @@ class IndexTab(BaseTab):
                 pkl_path.unlink(missing_ok=True)
 
             # Создаём новый пустой индекс
-            if model_type == "sam":
-                self.sam_index = FaissIndex(dimension=256, index_path="indexes/sam_index.faiss")
+            if model_type == "resnet":
+                self.resnet_index = FaissIndex(dimension=2048, index_path="indexes/resnet_index.faiss")
             elif model_type == "yolo":
                 self.yolo_index = FaissIndex(dimension=512, index_path="indexes/yolo_index.faiss")
 
-            self.log_message(f"{status} индекс успешно очищен и создан заново", "SUCCESS")
+            self.log_message(f"{status} индекс успешно очищен и создан заново", "УСПЕХ")
             self._update_status()
         except Exception as e:
             self.log_message(f"Ошибка очистки {status} индекса: {e}", "ERROR")
 
     def _update_status(self):
         """Обновление информации о состоянии индексов"""
-        sam_count = self.sam_index.get_total_vectors()
+        resnet_count = self.resnet_index.get_total_vectors()
         yolo_count = self.yolo_index.get_total_vectors()
         
-        text = f"SAM индекс: {sam_count} векторов | YOLO индекс: {yolo_count} векторов"
+        text = f"ResNet50 индекс: {resnet_count} векторов | YOLO индекс: {yolo_count} векторов"
         self.status_label.setText(text)
 
     def showEvent(self, event):

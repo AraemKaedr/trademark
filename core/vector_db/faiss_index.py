@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class FaissIndex:
-    def __init__(self, dimension=768, index_path="indexes/logo_index.faiss"):
+    def __init__(self, dimension=2048, index_path="indexes/logo_index.faiss"):
         self.dimension = dimension
         self.index_path = Path(index_path)
         self.embeddings_path = self.index_path.with_suffix('.npy')
@@ -19,11 +19,9 @@ class FaissIndex:
         self.index = None
         self.embeddings = None  # np.array всех векторов
         self.mapping = {}       # index_id -> image_path
-        self.is_loaded = False
-
         self.load()
 
-    def load(self) -> bool:
+    def load(self):
         """Загрузка существующего индекса или создание нового, а также загрузка сохранённых эмбеддингов"""
         self.index_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -47,19 +45,16 @@ class FaissIndex:
                 else:
                     self.mapping = {}   
                 
-                self.is_loaded = True
-                logger.info(f"{self.index_path.name} успешно загружен ({self.index.ntotal} векторов)")
+                logger.info(f"Индекс {self.index_path.name} успешно загружен ({self.index.ntotal} векторов)")
                 return True
             except Exception as e:
                 logger.error(f"Ошибка! Не удалось загрузить индекс {self.index_path.name}: {e}")
-                logger.info(" Создаётся новый пустой индекс...")
         
         # Если индекс не существует или ошибка — создаём новый
         logger.info(f"Создаётся новый FAISS индекс (dimension={self.dimension})")
         self.index = faiss.IndexFlatIP(self.dimension)
         self.embeddings = np.empty((0, self.dimension), dtype=np.float32)
         self.mapping = {}
-        self.is_loaded = True
 
         return False
 
@@ -87,36 +82,22 @@ class FaissIndex:
         self.save()
         logger.info(f"Добавлено {len(embeddings)} эмбеддинговв {self.index_path.name}")
 
+    def search(self, query_embedding: np.ndarray, k=5):
+        query = np.array([query_embedding]).astype('float32')
+        faiss.normalize_L2(query)
+        distances, indices = self.index.search(query, k)
+        return distances[0], indices[0]
+
     def save(self):
         """Сохранение всего"""
         faiss.write_index(self.index, str(self.index_path))
-        if self.embeddings is not None:
-            np.save(self.embeddings_path, self.embeddings)
+        np.save(self.embeddings_path, self.embeddings)
         
         with open(self.pkl_path, 'wb') as f:
             pickle.dump(self.mapping, f)
         
         logger.info(f"Сохранён индекс {self.index_path.name} + эмбеддинги ({len(self.embeddings)} векторов)")
 
-    def get_all_embeddings(self) -> np.ndarray:
-        """Возвращает все сохранённые эмбеддинги (с повторной попыткой загрузки)"""
-        if self.embeddings is None or len(self.embeddings) == 0:
-            # Если эмбеддинги не загружены — пытаемся загрузить ещё раз
-            if self.embeddings_path.exists():
-                try:
-                    self.embeddings = np.load(self.embeddings_path)
-                    logger.info(f"Повторно загружено {len(self.embeddings)} эмбеддингов")
-                except Exception as e:
-                    logger.error(f"Не удалось загрузить эмбеддинги: {e}")
-                    self.embeddings = np.empty((0, self.dimension), dtype=np.float32)
-            else:
-                self.embeddings = np.empty((0, self.dimension), dtype=np.float32)
-        return self.embeddings
-
-    def get_path_by_index(self, idx: int):
-        """Получить путь к изображению по его индексу в базе"""
-        return self.mapping.get(int(idx))
-
-    def get_total_vectors(self) -> int:
+    def get_total_vectors(self):
         """Количество векторов в индексе"""
-        return self.index.ntotal if self.index is not None else 0
+        return self.index.ntotal if self.index else 0

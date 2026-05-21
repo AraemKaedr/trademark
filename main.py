@@ -30,26 +30,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Проверка важных зависимостей
-try:
-    import segment_anything
-    logger.info("Библиотека segment-anything установлена")
-except ImportError:
-    logger.warning("Библиотека segment-anything не установлена. SAM будет работать в режиме заглушки.")
-
 
 def check_and_download_models():
     """Проверка наличия моделей и автоматическая загрузка при необходимости"""
     models_dir = Path("models")
     models_dir.mkdir(exist_ok=True)
 
-    sam_path = models_dir / "sam_vit_b.pth"
     yolo_path = models_dir / "yolov8n.pt"
+    # ResNet не требует скачивания
 
     missing = []
 
-    if not sam_path.exists():
-        missing.append("SAM (sam_vit_b.pth)")
     if not yolo_path.exists():
         missing.append("YOLOv8n (yolov8n.pt)")
 
@@ -89,25 +80,17 @@ def check_and_prepare_data():
     """Проверка наличия датасета и автоматическая подготовка"""
     data_dir = Path("data")
     raw_dir = data_dir / "raw"
-    csv_path = data_dir / "LogoDatabase.csv"
-
-    # Если папка raw пустая или отсутствует CSV — запускаем скачивание
-    need_download = False
-
-    if not raw_dir.exists() or not list(raw_dir.glob("*.*")):
+    if not raw_dir.exists() or len(list(raw_dir.glob("*.*"))) < 10:
         need_download = True
         logger.info("Папка data/raw пуста или не существует.")
-    elif not csv_path.exists():
-        need_download = True
-        logger.info("Файл LogoDatabase.csv не найден.")
-
+    
     if need_download:
         logger.info("Запускается подготовка датасета...")
         
         reply = QMessageBox.question(
             None,
             "Датасет не найден",
-            "Датасет Popular Brand Logos не обнаружен или не подготовлен.\n\n"
+            "Датасет не обнаружен или не подготовлен.\n\n"
             "Запустить скачивание и распаковку сейчас?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.Yes
@@ -149,7 +132,7 @@ def main():
     
     # Проверка и скачивание моделей перед запуском
     if not check_and_download_models():
-        logger.warning("Приложение запущено без всех моделей.")
+        logger.warning("Приложение запущено без некоторых моделей.")
     
     # Автоматическая проверка и подготовка датасета
     if not check_and_prepare_data():

@@ -1,5 +1,5 @@
 from gui.tabs.base_tab import BaseTab
-from core.embedders.sam_embedder import SAMEmbedder
+from core.embedders.resnet_embedder import ResNetEmbedder
 from core.embedders.yolo_embedder import YOLOEmbedder
 from core.vector_db.faiss_index import FaissIndex
 from gui.workers import EmbeddingWorker
@@ -13,11 +13,11 @@ import time
 class EmbeddingTab(BaseTab):
     def __init__(self):
         super().__init__()
-        self.sam_embedder = SAMEmbedder()
+        self.resnet_embedder = ResNetEmbedder()
         self.yolo_embedder = YOLOEmbedder()
         
         # Отдельные индексы для каждой модели
-        self.sam_index = FaissIndex(dimension=256, index_path="indexes/sam_index.faiss")
+        self.resnet_index = FaissIndex(dimension=2048, index_path="indexes/resnet_index.faiss")
         self.yolo_index = FaissIndex(dimension=512, index_path="indexes/yolo_index.faiss")
         
         self.current_worker = None
@@ -25,16 +25,16 @@ class EmbeddingTab(BaseTab):
         self.init_ui()
 
     def init_ui(self):
-        title = QLabel("Извлечение эмбеддингов (SAM + YOLO)")
+        title = QLabel("Извлечение эмбеддингов (ResNet50 + YOLO)")
         title.setStyleSheet("font-weight: bold; font-size: 14px;")
         self.layout.insertWidget(0, title)
 
         # Кнопки
         btn_layout = QHBoxLayout()
 
-        self.btn_sam = QPushButton("Извлечь эмбеддинги SAM")
-        self.btn_sam.clicked.connect(self.extract_sam)
-        btn_layout.addWidget(self.btn_sam)
+        self.btn_resnet = QPushButton("Извлечь эмбеддинги ResNet50")
+        self.btn_resnet.clicked.connect(self.extract_resnet)
+        btn_layout.addWidget(self.btn_resnet)
 
         self.btn_yolo = QPushButton("Извлечь эмбеддинги YOLO")
         self.btn_yolo.clicked.connect(self.extract_yolo)
@@ -67,19 +67,23 @@ class EmbeddingTab(BaseTab):
         self.progress.setVisible(True)
         self.progress.setValue(0)
 
-        if mode == "sam":
-            embedder = self.sam_embedder
-        elif mode == "yolo":
-            embedder = self.yolo_embedder
-        else:
-            self.log_message("Режим 'Извлечь эмбеддинги обеих моделей' пока в разработке", "WARNING")
-            return
-
+        try:
+            if mode in ["resnet", "both"]:
+                embedder = self.resnet_embedder
+                index = self.resnet_index
+            elif mode in ["yolo", "both"]:
+                embedder = self.yolo_embedder
+                index = self.yolo_index
+        except Exception as e:
+            self.log_message(f"Ошибка кластеризации: {e}", "ERROR")
+        
+        self.log_message(f"Кластеризация {mode.upper()} успешно завершена!", "УСПЕХ")
+        
         # Запускаем извлечение эмбеддингов в отдельном потоке
         self.current_worker = EmbeddingWorker(embedder, image_paths, mode)
         self.current_worker.progress.connect(self._update_progress)
-        self.current_worker.log.connect(lambda msg: self.log_message(msg))
-        self.current_worker.finished.connect(lambda embs: self._on_extraction_finished(mode, embs, image_paths))
+        self.current_worker.log.connect(self.log_message)
+        self.current_worker.finished.connect(lambda embs: self._on_extraction_finished(mode, embs, image_paths, index))
         
         self.current_worker.start()
 
@@ -96,29 +100,29 @@ class EmbeddingTab(BaseTab):
                 secs = int(remaining % 60)
                 self.log_message(f"Прогресс: {value}% | Осталось ~{mins} мин {secs} сек")
     
-    def extract_sam(self):
-        self._start_extraction("sam")
+    def extract_resnet(self):
+        self._start_extraction("resnet")
 
     def extract_yolo(self):
         self._start_extraction("yolo")
 
     def extract_both(self):
-        # self._start_extraction("both")
-        self.log_message("Извлечение эмбеддингов из обоих моделей одновременно пока в разработке", "WARNING")
+        self._start_extraction("both")
 
-    def _on_extraction_finished(self, mode: str, embeddings, image_paths):
+    def _on_extraction_finished(self, mode: str, embeddings, image_paths, index):
         """Вызывается после завершения потока"""
         self.progress.setValue(100)
         self.progress.setVisible(False)
+        image_paths = image_paths
         
         if not embeddings:
             self.log_message("Не удалось извлечь эмбеддинги", "ERROR")
             return
 
         try:
-            if mode == "sam":
-                self.sam_index.add(np.array(embeddings), self.current_worker.image_paths)
-            elif mode == "yolo":
+            if mode in ["resnet", "both"]:
+                self.resnet_index.add(np.array(embeddings), self.current_worker.image_paths)
+            elif mode in ["yolo", "both"]:
                 self.yolo_index.add(np.array(embeddings), self.current_worker.image_paths)
             self.log_message(f"{mode.upper()} эмбеддинги успешно сохранены ({len(embeddings)} векторов)", "УСПЕХ")
         except Exception as e:

@@ -48,36 +48,35 @@ class YOLOEmbedder:
         """Полноценное извлечение эмбеддингов из YOLOv8"""
         if self.use_stub or self.model is None:
             logger.warning("YOLO используется в режиме заглушки")
-            return np.random.RandomState(42).rand(512).astype(np.float32)
+            return np.random.RandomState(hash(Path(image_path).name) % (2**32)).rand(512).astype(np.float32)
 
         try:
             # Загружаем изображение
             img = Image.open(image_path).convert("RGB")
             
-            # Получаем предсказания + features
+            # Получаем предсказания + features (признаки)
             results = self.model(img, verbose=False, device=self.device)
 
-            # Способ 1: извлечение нескольких уровней features + concatenation (лучший способ)
+            # Способ 1: Извлекаем features (признаки) из нескольких уровней основы (лучший способ)
             features_list = []
             # ultralytics YOLOv8 хранит промежуточные результаты в model.model
             try:
                 # Проходим по модели и берём выход из одного из последних сверточных слоёв
                 model_layers = self.model.model.model
-
                 for layer in reversed(model_layers):
                     if hasattr(layer, 'output') and layer.output is not None:
                         feat = layer.output
                         if len(feat.shape) == 4:
                             # Global Average Pooling для каждого уровня
-                            pooled = torch.mean(feat, dim=[2, 3]).squeeze(0)
-                            features_list.append(pooled.cpu().numpy())
-                        if len(features_list) >= 3:  # берём 3 разных уровня
+                            pooled = torch.mean(feat, dim=[2, 3]).squeeze(0).cpu().numpy()
+                            features_list.append(pooled)
+                        if len(features_list) >= 6:   # берём больше уровней
                             break
             except Exception as inner_e:
-                logger.debug(f"Не удалось извлечь features: {inner_e}")
+                logger.debug(f"Не удалось извлечь features (признаки): {inner_e}")
             
             if features_list:
-                # Объединяем features из разных уровней
+                # Объединяем несколько уровней
                 emb = np.concatenate(features_list)
                 # Приводим к фиксированной размерности 512
                 if len(emb) > 512:
@@ -91,20 +90,17 @@ class YOLOEmbedder:
                     emb = emb / norm
                 
                 return emb.astype(np.float32)
-
             
             # Способ 2: Альтернативный способ Fallback (если первый не сработал)
             # Создаём разнообразный эмбеддинг, чтобы кластеризация работала (с вариацией по изображению)
-            filename = Path(image_path).name
-            seed = hash(filename) % (2**32)
+            logger.debug(f"Не удалось извлечь features (признаки), использую минимальный fallback для {Path(image_path).name}")
+            seed = hash(Path(image_path).name) % (2**32)
             emb = np.random.RandomState(seed).rand(512).astype(np.float32)
-            emb = emb * 0.6 + 0.2  # добавляем больше разнообразия
-            
-            logger.debug(f"YOLO fallback для {filename}")
+            emb = emb * 0.9
             return emb
-
+    
         except Exception as e:
             logger.warning(f"Ошибка извлечения YOLO эмбеддинга для {Path(image_path).name}: {e}")
             # Стабильная заглушка с вариацией по имени файла + небольшой шум
-            seed = hash(str(image_path)) % (2**32)
-            return np.random.RandomState(seed).rand(512).astype(np.float32) * 0.5 + 0.25
+            seed = hash(Path(image_path).name) % (2**32)
+            return np.random.RandomState(seed).rand(512).astype(np.float32) * 0.92

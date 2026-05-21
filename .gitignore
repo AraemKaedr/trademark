@@ -220,6 +220,10 @@ __marimo__/
 # My ignore
 data/raw/*
 data/processed/*
-models/*
+models/*.pt
+models/*.pth
+models_retrained/*.pt
+models_retrained/*.pth
 logs/*.log
+logs/*.png
 indexes/*

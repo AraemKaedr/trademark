@@ -42,6 +42,5 @@ class MainWindow(QMainWindow):
         # Передаём ResultsTab в SearchTab
         self.search_tab = SearchTab(results_tab=self.results_tab)
         self.tabs.addTab(self.search_tab, "5. Поиск")
-        
         self.tabs.addTab(self.results_tab, "6. Результаты")
-        self.tabs.addTab(ManagerTab(), "7. Менеджер моделей")
+        self.tabs.addTab(ManagerTab(), "7. Менеджер")

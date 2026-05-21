@@ -1,6 +1,7 @@
 """
 download_models.py
-Скрипт для автоматической загрузки моделей SAM и YOLOv8 в папку models/¶
+Скрипт для автоматической загрузки модели YOLOv8 в папку models/
+ResNet50 загружается автоматически из torchvision
 Для проекта TrademarkSearch
 """
 
@@ -12,10 +13,6 @@ from tqdm import tqdm
 # НАСТРОЙКИ
 MODELS_DIR = Path("models")
 MODELS_DIR.mkdir(exist_ok=True)
-
-# Прямая ссылка на модель SAM ViT-B (Segment Anything Model)
-SAM_URL = "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth"
-SAM_FILENAME = "sam_vit_b.pth"
 
 # Прямая ссылка на модель YOLOv8n
 YOLO_URL = "https://github.com/ultralytics/assets/releases/download/v8.2.0/yolov8n.pt"
@@ -30,7 +27,7 @@ def download_file(url: str, filename: str):
         print(f"{filename} уже существует ({filepath.stat().st_size / (1024*1024):.1f} MB)")
         return True
 
-    print(f"Скачивание {filename} (~350 МБ для SAM)...")
+    print(f"Скачивание {filename}...")
     
     try:
         response = requests.get(url, stream=True, timeout=30)
@@ -43,7 +40,6 @@ def download_file(url: str, filename: str):
             total=total_size,
             unit='iB',
             unit_scale=True,
-            unit_divisor=1024,
         ) as bar:
             for chunk in response.iter_content(chunk_size=8192):
                 size = f.write(chunk)
@@ -60,27 +56,21 @@ def download_file(url: str, filename: str):
 
 
 def main():
-    print("Скачивание моделей для проекта TrademarkSearch")
-
-    success = 0
-
-    # SAM
-    if download_file(SAM_URL, SAM_FILENAME):
-        success += 1
+    print("Скачивание моделей для проекта TrademarkSearch (ResNet50 + YOLOv8n)")
 
     # YOLOv8n
-    if download_file(YOLO_URL, YOLO_FILENAME):
-        success += 1
+    success = download_file(YOLO_URL, YOLO_FILENAME)
 
     print("\n-----")
-    print(f"Завершено. Успешно скачано: {success}/2 моделей")
-    print(f"Папка: {MODELS_DIR.resolve()}")
+    print(f"Завершено. Успешно скачано: {success}/1 моделей")
+    print("\nResNet50 будет загружаться автоматически из torchvision.")
 
-    if success < 2:
-        print("\nЕсли скачивание зависло — скачайте SAM и YOLO вручную:")
-        print("Ссылка на SAM: https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth")
+    if success < 1:
+        print("\nЕсли скачивание зависло — скачайте YOLO вручную:")
         print("Ссылка на YOLO: https://github.com/ultralytics/assets/releases/download/v8.2.0/yolov8n.pt")
-        print("переименуйте файлы в sam_vit_b.pth и yolov8n.pt и положите их в папку models/")
+        print("переименуйте файл в yolov8n.pt и положите его в папку models/")
+    
+    print(f"Модели сохранены в: {MODELS_DIR.resolve()}")
 
 
 if __name__ == "__main__":
